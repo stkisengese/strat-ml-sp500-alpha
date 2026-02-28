@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+# use non-interactive backend for environments without display (headless)
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import os
 
