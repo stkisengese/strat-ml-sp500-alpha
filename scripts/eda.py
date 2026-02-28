@@ -63,3 +63,18 @@ print(f"Number of duplicate rows: {duplicates}")
 zero_volume_days = (df['volume'] == 0).sum()
 print(f"Number of zero-volume days: {zero_volume_days}")
 
+# 5. Confirm the dataset spans the expected range and that 2017 is a clean cut point for train/test
+print("\nConfirming date range and train/test split point...")
+start_date = df['date'].min()
+end_date = df['date'].max()
+print(f"Dataset starts on {start_date} and ends on {end_date}.")
+if pd.Timestamp('2017-01-01') > start_date and pd.Timestamp('2017-01-01') < end_date:
+    print("The year 2017 is a valid split point for train/test sets.")
+else:
+    print("Warning: 2017 is not a suitable split point as it's outside the data range.")
+
+# 6. Document the survivor bias caveat
+print("\n--- Important Caveat ---")
+print("Survivor Bias: This dataset contains only tickers that survived to the collection date. This means that stocks that were delisted due to bankruptcy, acquisition, or other reasons are not included. This can lead to an optimistic bias in backtesting results, as the strategy is not tested on a representative sample of the market.")
+
+print("\nEDA script finished.")
