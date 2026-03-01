@@ -29,3 +29,18 @@ def compute_features(group):
         group['macd_hist'] = macd.iloc[:, 1] / group['close']
 
     return group
+
+def main():
+     # Combine features
+    features = ['bb_percent', 'bb_width', 'rsi', 'rsi_change', 'macd', 'macd_signal', 'macd_hist']
+
+
+    print("Loading data...")
+    df = pd.read_csv('data/all_stocks_5yr.csv')
+    df['date'] = pd.to_datetime(df['date'])
+    
+    print("Setting MultiIndex and sorting...")
+    df = df.sort_values(['Name', 'date']).set_index(['date', 'Name'])
+
+if __name__ == "__main__":
+    main()
