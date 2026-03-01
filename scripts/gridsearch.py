@@ -6,6 +6,17 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import os
 
+def dates_to_mask(df: pd.DataFrame, dates: np.ndarray) -> pd.Series:
+    """Convert set of dates to boolean row mask on MultiIndex (date, ticker)."""
+    return df.index.get_level_values("date").isin(dates)
+
+def date_aware_split(unique_dates, n_splits=10, min_train_days=504, gap=2, mode="blocking"):
+    """Generic date-aware splitter (used internally by the two schemes)."""
+    if mode == "blocking":
+        return blocking_time_series_split(unique_dates, n_splits, min_train_days, gap)
+    elif mode == "walk_forward":
+        return walk_forward_split(unique_dates, n_splits, min_train_days, gap)
+    raise ValueError("mode must be 'blocking' or 'walk_forward'")
 
 def main():
     # Load the clean processed data from features_engineering.py
