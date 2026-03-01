@@ -51,12 +51,12 @@ Set up the project skeleton exactly as specified so every subsequent script has 
 Before any modelling, understand the data's shape, quality, and quirks. Decisions made here propagate through the entire pipeline.
 
 **Tasks**
-- [ ] Load `all_stocks_5yr.csv`; check date range, number of unique tickers, missing values per ticker
-- [ ] Plot price series for 5 sample tickers — visually confirm non-stationarity
-- [ ] Plot log-return series for the same tickers — visually confirm approximate stationarity
-- [ ] Check for gaps (missing trading days), duplicate rows, or zero-volume days
-- [ ] Confirm the dataset spans the expected range and that 2017 is a clean cut point for train/test
-- [ ] Document the survivor bias caveat: the dataset contains only tickers that survived to the collection date
+- [x] Load `all_stocks_5yr.csv`; check date range, number of unique tickers, missing values per ticker
+- [x] Plot price series for 5 sample tickers — visually confirm non-stationarity
+- [x] Plot log-return series for the same tickers — visually confirm approximate stationarity
+- [x] Check for gaps (missing trading days), duplicate rows, or zero-volume days
+- [x] Confirm the dataset spans the expected range and that 2017 is a clean cut point for train/test
+- [x] Document the survivor bias caveat: the dataset contains only tickers that survived to the collection date
 
 **Learning checkpoint:** Visually seeing the difference between a price series (trending, non-stationary) and its log returns (mean-reverting, stationary) is the intuition behind every modelling choice downstream.
 
@@ -76,20 +76,20 @@ Before any modelling, understand the data's shape, quality, and quirks. Decision
 The entire project's validity rests on this issue. The DataFrame must have a `(date, ticker)` MultiIndex, be sorted chronologically within each ticker, and contain no information from day D+1 or beyond in any row representing day D.
 
 **Tasks**
-- [ ] Load `all_stocks_5yr.csv`, parse dates, sort by `(date, Name)`
-- [ ] Set MultiIndex to `(date, Name)` — all downstream code will assume this
-- [ ] Perform train/test split **before** computing any features:
+- [x] Load `all_stocks_5yr.csv`, parse dates, sort by `(date, Name)`
+- [x] Set MultiIndex to `(date, Name)` — all downstream code will assume this
+- [x] Perform train/test split **before** computing any features:
   ```python
   train = df[df.index.get_level_values("date") < "2017-01-01"]
   test  = df[df.index.get_level_values("date") >= "2017-01-01"]
   ```
-- [ ] Write a `compute_features(group)` function that operates on a single ticker's time series using **trailing windows only**
-- [ ] Verify no `NaN` leakage: after computing features, confirm that row D contains no close price from D+1
+- [x] Write a `compute_features(group)` function that operates on a single ticker's time series using **trailing windows only**
+- [x] Verify no `NaN` leakage: after computing features, confirm that row D contains no close price from D+1
 
 **Leakage audit checklist (must pass before merging):**
-- [ ] All rolling windows use `min_periods` and no `center=True`
-- [ ] No global statistics (mean, std) computed across the full dataset before splitting
-- [ ] No forward-fill that crosses the train/test boundary
+- [x] All rolling windows use `min_periods` and no `center=True`
+- [x] No global statistics (mean, std) computed across the full dataset before splitting
+- [x] No forward-fill that crosses the train/test boundary
 
 **Learning checkpoint:** This issue forces you to internalise the leakage rules discussed in the course — the schema `Features until D 23:59pm → target = sign(return(D+1, D+2))` must be physically present in your DataFrame, not just conceptually understood.
 
@@ -106,11 +106,11 @@ The entire project's validity rests on this issue. The DataFrame must have a `(d
 Implement Bollinger Band features with correct trailing windows. Raw band levels are not useful as features — derive the stationary, normalised signals.
 
 **Tasks**
-- [ ] Compute 20-day SMA and 20-day rolling standard deviation per ticker using `groupby("ticker").transform`
-- [ ] Derive `%B = (close - lower_band) / (upper_band - lower_band)` — bounded 0 to 1, measures where price sits within the bands
-- [ ] Derive `bandwidth = (upper_band - lower_band) / middle_band` — measures volatility regime; a squeeze (low bandwidth) precedes large moves
-- [ ] Use `pandas_ta.bbands` or equivalent library call; verify output matches manual calculation on a sample ticker
-- [ ] Confirm both features are stationary (no persistent upward trend)
+- [x] Compute 20-day SMA and 20-day rolling standard deviation per ticker using `groupby("ticker").transform`
+- [x] Derive `%B = (close - lower_band) / (upper_band - lower_band)` — bounded 0 to 1, measures where price sits within the bands
+- [x] Derive `bandwidth = (upper_band - lower_band) / middle_band` — measures volatility regime; a squeeze (low bandwidth) precedes large moves
+- [x] Use `pandas_ta.bbands` or equivalent library call; verify output matches manual calculation on a sample ticker
+- [x] Confirm both features are stationary (no persistent upward trend)
 
 **Why these features and not raw band levels:** Raw levels inherit the non-stationarity of price. `%B` and `bandwidth` are normalised and stationary by construction — they measure relative position and volatility regime, not absolute price.
 
@@ -127,10 +127,10 @@ Implement Bollinger Band features with correct trailing windows. Raw band levels
 RSI is a bounded momentum oscillator. Its value already lies in [0, 100] making it naturally well-scaled. The key is ensuring the rolling computation is purely backward-looking.
 
 **Tasks**
-- [ ] Compute 14-period RSI per ticker using a trailing window
-- [ ] Verify RSI is bounded between 0 and 100 across all tickers
-- [ ] Add `rsi_change` = first difference of RSI as an additional feature (captures momentum acceleration)
-- [ ] Spot-check: during a strong uptrend, RSI should be consistently high; during a downtrend, consistently low
+- [x] Compute 14-period RSI per ticker using a trailing window
+- [x] Verify RSI is bounded between 0 and 100 across all tickers
+- [x] Add `rsi_change` = first difference of RSI as an additional feature (captures momentum acceleration)
+- [x] Spot-check: during a strong uptrend, RSI should be consistently high; during a downtrend, consistently low
 
 **Learning checkpoint:** RSI is a mean-reversion signal in sideways markets but a continuation signal in trends — it doesn't have a universal interpretation. The model will learn when to use it through cross-validation, but understanding this regime-dependence explains why it may not always appear in the top feature importances.
 
@@ -147,11 +147,11 @@ RSI is a bounded momentum oscillator. Its value already lies in [0, 100] making 
 MACD has three components, each capturing a different aspect of trend momentum. All three should be included as separate features.
 
 **Tasks**
-- [ ] Compute MACD line (EMA12 − EMA26) per ticker
-- [ ] Compute Signal line (EMA9 of MACD line) per ticker
-- [ ] Compute Histogram (MACD − Signal) per ticker — this is the most forward-looking component; a shrinking histogram signals decelerating momentum before any line crossover
-- [ ] Normalise all three by dividing by the closing price to make them comparable across tickers with different price scales
-- [ ] Verify that all three series are stationary (no drift)
+- [x] Compute MACD line (EMA12 − EMA26) per ticker
+- [x] Compute Signal line (EMA9 of MACD line) per ticker
+- [x] Compute Histogram (MACD − Signal) per ticker — this is the most forward-looking component; a shrinking histogram signals decelerating momentum before any line crossover
+- [x] Normalise all three by dividing by the closing price to make them comparable across tickers with different price scales
+- [x] Verify that all three series are stationary (no drift)
 
 ---
 
@@ -166,15 +166,15 @@ MACD has three components, each capturing a different aspect of trend momentum. 
 The target must be the **sign of the return from D+1 to D+2, placed on row D**. This shift is the single most common source of leakage in this project.
 
 **Tasks**
-- [ ] Compute per-ticker log returns: `log(close_t / close_{t-1})`
-- [ ] Shift returns backward by 1 within each ticker group:
+- [x] Compute per-ticker log returns: `log(close_t / close_{t-1})`
+- [x] Shift returns backward by 1 within each ticker group:
   ```python
   df["target"] = df.groupby("Name")["log_return"].transform(lambda x: np.sign(x.shift(-1)))
   ```
-- [ ] Confirm the schema with a concrete example:
+- [x] Confirm the schema with a concrete example:
   - Row for 2016-01-04 (AAPL) should have target = sign(return on 2016-01-06, i.e., close_0106 / close_0105)
-- [ ] Drop rows where target is NaN (last day per ticker has no forward return)
-- [ ] Check class balance: ideally close to 50/50 between +1 and -1
+- [x] Drop rows where target is NaN (last day per ticker has no forward return)
+- [x] Check class balance: ideally close to 50/50 between +1 and -1
 
 **Leakage self-test:** If you train a trivial model (e.g., always predict +1) and it achieves accuracy far above 50%, re-examine the target construction — you likely have leakage.
 
@@ -191,11 +191,11 @@ The target must be the **sign of the return from D+1 to D+2, placed on row D**. 
 Combine all features and target into a single clean DataFrame and persist it for use in all downstream scripts.
 
 **Tasks**
-- [ ] Concatenate all feature columns and the target into one DataFrame with MultiIndex `(date, ticker)`
-- [ ] Drop rows with NaN in any feature (introduced by rolling window warm-up periods) or in target
-- [ ] Confirm the train/test split is still clean after dropping NaN rows
-- [ ] Save `X_train`, `y_train`, `X_test`, `y_test` to `data/processed/` as parquet or CSV
-- [ ] Print a summary: date range, number of tickers, number of rows, class balance in target
+- [x] Concatenate all feature columns and the target into one DataFrame with MultiIndex `(date, ticker)`
+- [x] Drop rows with NaN in any feature (introduced by rolling window warm-up periods) or in target
+- [x] Confirm the train/test split is still clean after dropping NaN rows
+- [x] Save `X_train`, `y_train`, `X_test`, `y_test` to `data/processed/` as parquet or CSV
+- [x] Print a summary: date range, number of tickers, number of rows, class balance in target
 
 ---
 
