@@ -57,5 +57,35 @@ def main():
     print("Dropping NaNs...")
     df = df.dropna(subset=features + ['target']) # Drop rows where features or target are NaN
     
+    print("Splitting train/test...")
+    train = df[df.index.get_level_values("date") < "2017-01-01"].copy()
+    test = df[df.index.get_level_values("date") >= "2017-01-01"].copy()
+
+    # The last 2 trading days of train have targets that peek into test prices
+    # (shift(-2) on Dec 29, 2016 uses close prices from Jan 3-4, 2017)
+    cutoff = train.index.get_level_values('date').unique().sort_values()[-2]
+    train = train[train.index.get_level_values('date') < cutoff]
+
+    # Save processed data
+    os.makedirs('data/processed', exist_ok=True)
+    
+    # Separate X and y
+    X_train = train[features]
+    y_train = train['target']
+    X_test = test[features]
+    y_test = test['target']
+
+    print(f"Saving processed data... Train rows: {len(X_train)}, Test rows: {len(X_test)}")
+    X_train.to_csv('data/processed/X_train.csv')
+    y_train.to_csv('data/processed/y_train.csv')
+    X_test.to_csv('data/processed/X_test.csv')
+    y_test.to_csv('data/processed/y_test.csv')
+
+    # Summary
+    print("\nSummary:")
+    print(f"Date range: {df.index.get_level_values('date').min()} to {df.index.get_level_values('date').max()}")
+    print(f"Number of tickers: {df.index.get_level_values('Name').nunique()}")
+    print(f"Target class balance (train):\n{y_train.value_counts(normalize=True)}")
+
 if __name__ == "__main__":
     main()
