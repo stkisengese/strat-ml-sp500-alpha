@@ -4,13 +4,14 @@ import pandas_ta as ta
 import os
 
 def compute_features(group):
+    """All features are computed on the close price series, then merged back to the group DataFrame."""
     close = group['close']
 
     # Bollinger Bands (20-day, 2 std)
     bbands = ta.bbands(close, length=20, std=2)
     if bbands is not None:
-        group['bb_percent'] = bbands['BBP_20_2.0'].values  # position within bands [0,1]
-        group['bb_width']   = bbands['BBB_20_2.0'].values  # volatility regime
+        group['bb_percent'] = bbands['BBP_20_2.0_2.0'].values  # position within bands [0,1]
+        group['bb_width']   = bbands['BBB_20_2.0_2.0'].values  # volatility regime
 
     # RSI (14-day) — bounded [0, 100], no normalisation needed
     rsi = ta.rsi(close, length=14)
