@@ -30,62 +30,66 @@ def compute_features(group):
 
     return group
 
-def main():
-     # Combine features
-    features = ['bb_percent', 'bb_width', 'rsi', 'rsi_change', 'macd', 'macd_signal', 'macd_hist']
 
+def main():
+    # Define features list first — used in dropna and downstream scripts
+    features = ['bb_percent', 'bb_width', 'rsi', 'rsi_change',
+                'macd', 'macd_signal', 'macd_hist']
 
     print("Loading data...")
     df = pd.read_csv('data/all_stocks_5yr.csv')
     df['date'] = pd.to_datetime(df['date'])
-    
+
     print("Setting MultiIndex and sorting...")
     df = df.sort_values(['Name', 'date']).set_index(['date', 'Name'])
 
-    # Target calculation
-    # On day D, target is sign(return(D+1, D+2))
-    # log_return[t] = log(close[t] / close[t-1]) -> return from t-1 to t
-    # return(D+1, D+2) is log_return[D+2]
-    # So target[D] = sign(log_return[D+2])
+    # Target: on day D, predict sign(return(D+1 → D+2))
+    # log_return[t] = log(close[t] / close[t-1]) is the return arriving ON day t
+    # return(D+1, D+2) = log_return[D+2], so shift(-2) places it on row D
     print("Computing target...")
-    df['log_return'] = df.groupby(level='Name')['close'].transform(lambda x: np.log(x / x.shift(1)))
-    # We use shift(-2) to get return(D+1, D+2) on day D
-    df['target'] = df.groupby(level='Name')['log_return'].transform(lambda x: np.sign(x.shift(-2)))
+    df['log_return'] = df.groupby(level='Name')['close'].transform(
+        lambda x: np.log(x / x.shift(1))
+    )
+    df['target'] = df.groupby(level='Name')['log_return'].transform(
+        lambda x: np.sign(x.shift(-2))
+    )
 
-    print("Computing features for all data...")
+    # Compute features on full dataset — trailing windows have no leakage risk
+    # Scaler/imputer (the actual leakage risk) are fit inside CV folds later
+    print("Computing features...")
     df = df.groupby(level='Name', group_keys=False).apply(compute_features)
-    print("Dropping NaNs...")
-    df = df.dropna(subset=features + ['target']) # Drop rows where features or target are NaN
-    
-    print("Splitting train/test...")
-    train = df[df.index.get_level_values("date") < "2017-01-01"].copy()
-    test = df[df.index.get_level_values("date") >= "2017-01-01"].copy()
 
-    # The last 2 trading days of train have targets that peek into test prices
-    # (shift(-2) on Dec 29, 2016 uses close prices from Jan 3-4, 2017)
-    cutoff = train.index.get_level_values('date').unique().sort_values()[-2]
+    # Drop NaN rows introduced by rolling warm-up periods and target shift
+    print("Dropping NaNs...")
+    df = df.dropna(subset=features + ['target'])
+
+    # Split after features are clean
+    print("Splitting train/test...")
+    train = df[df.index.get_level_values('date') < '2017-01-01'].copy()
+    test  = df[df.index.get_level_values('date') >= '2017-01-01'].copy()
+
+    # Remove last 2 trading days from train: their targets use close prices
+    # from Jan 2017 (test period) due to shift(-2) crossing the boundary
+    train_dates = train.index.get_level_values('date').unique().sort_values()
+    cutoff = train_dates[-2]
     train = train[train.index.get_level_values('date') < cutoff]
 
-    # Save processed data
-    os.makedirs('data/processed', exist_ok=True)
-    
-    # Separate X and y
-    X_train = train[features]
-    y_train = train['target']
-    X_test = test[features]
-    y_test = test['target']
+    X_train, y_train = train[features], train['target']
+    X_test,  y_test  = test[features],  test['target']
 
-    print(f"Saving processed data... Train rows: {len(X_train)}, Test rows: {len(X_test)}")
+    print(f"Saving processed data... Train rows: {len(X_train):,} | Test rows: {len(X_test):,}")
+    os.makedirs('data/processed', exist_ok=True)
     X_train.to_csv('data/processed/X_train.csv')
     y_train.to_csv('data/processed/y_train.csv')
     X_test.to_csv('data/processed/X_test.csv')
     y_test.to_csv('data/processed/y_test.csv')
 
-    # Summary
-    print("\nSummary:")
-    print(f"Date range: {df.index.get_level_values('date').min()} to {df.index.get_level_values('date').max()}")
-    print(f"Number of tickers: {df.index.get_level_values('Name').nunique()}")
-    print(f"Target class balance (train):\n{y_train.value_counts(normalize=True)}")
+    print(f"\nTrain rows: {len(X_train):,} | Test rows: {len(X_test):,}")
+    print(f"Date range: {df.index.get_level_values('date').min().date()} "
+          f"to {df.index.get_level_values('date').max().date()}")
+    print(f"Tickers: {df.index.get_level_values('Name').nunique()}")
+    print(f"\nTarget class balance (train):\n{y_train.value_counts(normalize=True).round(3)}")
+
 
 if __name__ == "__main__":
     main()
