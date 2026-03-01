@@ -18,6 +18,22 @@ def date_aware_split(unique_dates, n_splits=10, min_train_days=504, gap=2, mode=
         return walk_forward_split(unique_dates, n_splits, min_train_days, gap)
     raise ValueError("mode must be 'blocking' or 'walk_forward'")
 
+def blocking_time_series_split(unique_dates, n_splits=5, min_train_days=504, gap=2):
+    """Non-overlapping blocks. Each fold's train and val are independent."""
+    unique_dates = np.array(unique_dates)
+    n = len(unique_dates)
+    # Adapt block size to respect min_train_days while trying to reach requested folds
+    effective_n_splits = min(n_splits, (n - gap) // (min_train_days + 63))
+    block_size = max(min_train_days, (n - effective_n_splits * gap) // (effective_n_splits * 2))
+    for i in range(effective_n_splits):
+        train_start = i * 2 * block_size
+        train_end = train_start + block_size
+        val_start = train_end + gap
+        val_end = val_start + block_size
+        if val_end > n:
+            break
+        yield unique_dates[train_start:train_end], unique_dates[val_start:val_end]
+
 def main():
     # Load the clean processed data from features_engineering.py
     print("Loading processed data...")
