@@ -42,5 +42,20 @@ def main():
     print("Setting MultiIndex and sorting...")
     df = df.sort_values(['Name', 'date']).set_index(['date', 'Name'])
 
+    # Target calculation
+    # On day D, target is sign(return(D+1, D+2))
+    # log_return[t] = log(close[t] / close[t-1]) -> return from t-1 to t
+    # return(D+1, D+2) is log_return[D+2]
+    # So target[D] = sign(log_return[D+2])
+    print("Computing target...")
+    df['log_return'] = df.groupby(level='Name')['close'].transform(lambda x: np.log(x / x.shift(1)))
+    # We use shift(-2) to get return(D+1, D+2) on day D
+    df['target'] = df.groupby(level='Name')['log_return'].transform(lambda x: np.sign(x.shift(-2)))
+
+    print("Computing features for all data...")
+    df = df.groupby(level='Name', group_keys=False).apply(compute_features)
+    print("Dropping NaNs...")
+    df = df.dropna(subset=features + ['target']) # Drop rows where features or target are NaN
+    
 if __name__ == "__main__":
     main()
