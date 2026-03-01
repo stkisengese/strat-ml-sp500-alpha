@@ -28,6 +28,37 @@ def compute_features(group):
 
     return group
 
+def assertions(X_train, y_train, X_test, y_test, features):
+    """Run assertions to validate feature engineering results."""
+
+    # 1. Temporal Integrity: Ensure X_train doesn't cross into 2017
+    last_train_date = X_train.index.get_level_values('date').max()
+    assert last_train_date < pd.Timestamp('2017-01-01'), \
+        f"Temporal Leakage: Train data extends to {last_train_date}"
+
+    # 2. Target Distribution: Check for extreme imbalance 
+    # (Market noise usually results in near 50/50 for sign-based returns)
+    pos_ratio = (y_train == 1).mean()
+    assert 0.40 < pos_ratio < 0.60, \
+        f"Target imbalance warning: {pos_ratio:.2%} are positive. Check shift logic."
+
+    # 3. Disjoint Sets: Ensure no shared timestamps between Train and Test
+    train_dates = set(X_train.index.get_level_values('date'))
+    test_dates  = set(X_test.index.get_level_values('date'))
+    assert train_dates.isdisjoint(test_dates), "Data Leakage: Overlapping dates in Train and Test sets."
+
+    # 4. Feature Integrity: Check for any remaining NaNs
+    assert not X_train.isnull().any().any(), "X_train contains NaNs after dropna"
+    assert not X_test.isnull().any().any(), "X_test contains NaNs after dropna"
+
+    # 5. Look-Ahead Target Check (Manual Spot Check)
+    # Ensure our target isn't just a copy of a feature
+    for feat in features:
+        correlation = y_train.corr(X_train[feat])
+        assert abs(correlation) < 0.9, f"Feature '{feat}' is too highly correlated with target ({correlation:.2f}). Possible leakage."
+
+    print("All assertions passed. Data is clean and safe.")
+
 
 def main():
     # Define features list first — used in dropna and downstream scripts
@@ -74,6 +105,9 @@ def main():
 
     X_train, y_train = train[features], train['target']
     X_test,  y_test  = test[features],  test['target']
+
+    # Assertions to catch any data issues before saving
+    assertions(X_train, y_train, X_test, y_test, features)
 
     print(f"Saving processed data... Train rows: {len(X_train):,} | Test rows: {len(X_test):,}")
     os.makedirs('data/processed', exist_ok=True)
