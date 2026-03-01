@@ -214,12 +214,12 @@ Combine all features and target into a single clean DataFrame and persist it for
 Standard scikit-learn splitters operate on row indices. Since multiple tickers share the same date, splits must be defined on **unique dates** and then mapped back to rows. Splitting on rows would allow data from the same calendar day to appear in both train and validation — a form of leakage.
 
 **Tasks**
-- [ ] Extract `unique_dates` from the training MultiIndex
-- [ ] Write a `date_aware_split(unique_dates, n_splits, min_train_days, gap)` generator that yields `(train_dates, val_dates)` pairs
-- [ ] Enforce `min_train_days >= 504` (2 trading years)
-- [ ] Enforce `gap >= 1` between training end date and validation start date (prevents autocorrelation leakage at the boundary)
-- [ ] Write a helper `dates_to_mask(df, dates)` that converts a set of dates to a boolean row mask on the MultiIndex DataFrame
-- [ ] Add an assertion that no fold's validation dates overlap with the test set (≥ 2017)
+- [x] Extract `unique_dates` from the training MultiIndex
+- [x] Write a `date_aware_split(unique_dates, n_splits, min_train_days, gap)` generator that yields `(train_dates, val_dates)` pairs
+- [x] Enforce `min_train_days >= 504` (2 trading years)
+- [x] Enforce `gap >= 1` between training end date and validation start date (prevents autocorrelation leakage at the boundary)
+- [x] Write a helper `dates_to_mask(df, dates)` that converts a set of dates to a boolean row mask on the MultiIndex DataFrame
+- [x] Add an assertion that no fold's validation dates overlap with the test set (≥ 2017)
 
 ---
 
@@ -234,11 +234,11 @@ Standard scikit-learn splitters operate on row indices. Since multiple tickers s
 In a blocking split, the timeline is divided into non-overlapping date blocks. Each fold's training set is one block and its validation set is the immediately following block (with a gap). Folds are independent — training data from fold 1 does not appear in fold 2.
 
 **Tasks**
-- [ ] Implement `blocking_time_series_split(unique_dates, n_splits, min_train_days, gap=2)`
-- [ ] Verify with a unit test: no two folds share any training dates
-- [ ] Verify: each training block contains at least 504 trading days
-- [ ] Verify: no validation block bleeds into the test period
-- [ ] Save visualisation as `results/cross-validation/blocking_time_series_split.png`
+- [x] Implement `blocking_time_series_split(unique_dates, n_splits, min_train_days, gap=2)`
+- [x] Verify with a unit test: no two folds share any training dates
+- [x] Verify: each training block contains at least 504 trading days
+- [x] Verify: no validation block bleeds into the test period
+- [x] Save visualisation as `results/cross-validation/blocking_time_series_split.png`
 
 **Visualisation spec:**
 - x-axis: calendar date
@@ -261,10 +261,10 @@ In a blocking split, the timeline is divided into non-overlapping date blocks. E
 In walk-forward CV, the training set expands with each fold (expanding window). Each fold trains on all data up to a cutoff, then validates on the next window. This mirrors live deployment most faithfully.
 
 **Tasks**
-- [ ] Implement `walk_forward_split(unique_dates, n_splits, min_train_days, gap=2)`
-- [ ] Verify with a unit test: fold k's training set is a strict superset of fold k-1's training set
-- [ ] Verify: each training set contains at least 504 trading days
-- [ ] Save visualisation as `results/cross-validation/Time_series_split.png`
+- [x] Implement `walk_forward_split(unique_dates, n_splits, min_train_days, gap=2)`
+- [x] Verify with a unit test: fold k's training set is a strict superset of fold k-1's training set
+- [x] Verify: each training set contains at least 504 trading days
+- [x] Save visualisation as `results/cross-validation/Time_series_split.png`
 
 **Note:** Only one CV scheme needs to be submitted. Implement both, compare them in a comment in the code, and commit to one for the grid search. Blocking is recommended when the goal is unbiased model selection; walk-forward when simulating deployment.
 

@@ -34,6 +34,23 @@ def blocking_time_series_split(unique_dates, n_splits=5, min_train_days=504, gap
             break
         yield unique_dates[train_start:train_end], unique_dates[val_start:val_end]
 
+
+def walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2):
+    """Issue #11: Expanding window (walk-forward). Mirrors live deployment."""
+    unique_dates = np.array(unique_dates)
+    n = len(unique_dates)
+    val_size = max(30, (n - min_train_days) // n_splits)  # ~1 month val per fold
+    for i in range(n_splits):
+        train_end = min_train_days + i * val_size
+        if train_end >= n:
+            break
+        val_start = train_end + gap
+        val_end = val_start + val_size
+        if val_end > n:
+            break
+        yield unique_dates[:train_end], unique_dates[val_start:val_end]
+
+
 def main():
     # Load the clean processed data from features_engineering.py
     print("Loading processed data...")
