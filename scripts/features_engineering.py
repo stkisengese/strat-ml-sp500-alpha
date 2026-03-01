@@ -4,29 +4,26 @@ import pandas_ta as ta
 import os
 
 def compute_features(group):
-    # Bollinger Bands
-    # length=20, std=2
-    bbands = group.ta.bbands(length=20, std=2)
-    if bbands is None:
-        return group
-    # print(bbands.columns) # Debug
-    # pandas_ta bbands returns: BBL_20_2.0 (lower), BBM_20_2.0 (mid), BBU_20_2.0 (upper), BBB_20_2.0 (bandwidth), BBP_20_2.0 (%B)
-    group['bb_percent'] = bbands.iloc[:, 4] # BBP is usually the 5th column
-    group['bb_width'] = bbands.iloc[:, 3]   # BBB is usually the 4th column
+    close = group['close']
 
-    # RSI
-    # length=14
-    group['rsi'] = group.ta.rsi(length=14)
-    group['rsi_change'] = group['rsi'].diff()
+    # Bollinger Bands (20-day, 2 std)
+    bbands = ta.bbands(close, length=20, std=2)
+    if bbands is not None:
+        group['bb_percent'] = bbands['BBP_20_2.0'].values  # position within bands [0,1]
+        group['bb_width']   = bbands['BBB_20_2.0'].values  # volatility regime
 
-    # MACD
-    # fast=12, slow=26, signal=9
-    macd = group.ta.macd(fast=12, slow=26, signal=9)
-    if macd is not None:
-        # returns: MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
-        group['macd'] = macd.iloc[:, 0] / group['close']
-        group['macd_signal'] = macd.iloc[:, 2] / group['close']
-        group['macd_hist'] = macd.iloc[:, 1] / group['close']
+    # RSI (14-day) — bounded [0, 100], no normalisation needed
+    rsi = ta.rsi(close, length=14)
+    if rsi is not None:
+        group['rsi']        = rsi.values
+        group['rsi_change'] = rsi.diff().values  # momentum acceleration
+
+    # MACD (12, 26, 9) — normalised by close to make comparable across tickers
+    macd_df = ta.macd(close, fast=12, slow=26, signal=9)
+    if macd_df is not None:
+        group['macd']        = (macd_df['MACD_12_26_9']  / close).values
+        group['macd_signal'] = (macd_df['MACDs_12_26_9'] / close).values
+        group['macd_hist']   = (macd_df['MACDh_12_26_9'] / close).values
 
     return group
 
