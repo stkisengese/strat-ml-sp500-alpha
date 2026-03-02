@@ -37,7 +37,7 @@ def blocking_time_series_split(unique_dates, n_splits=5, min_train_days=504, gap
 
 
 def walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2):
-    """Issue #11: Expanding window (walk-forward). Mirrors live deployment."""
+    """Expanding window (walk-forward). Mirrors live deployment."""
     unique_dates = np.array(unique_dates)
     n = len(unique_dates)
     val_size = max(30, (n - min_train_days) // n_splits)  # ~1 month val per fold
@@ -79,12 +79,51 @@ def plot_cv_scheme(cv_splits, unique_dates, title, filename):
 def main():
     # Load the clean processed data from features_engineering.py
     print("Loading processed data...")
-    X_train = pd.read_csv('data/processed/X_train.csv', index_col=[0, 1], parse_dates=True)
-    y_train = pd.read_csv('data/processed/y_train.csv', index_col=[0, 1], parse_dates=True).iloc[:, 0]  # Convert to Series
+    X_train = pd.read_csv('data/processed/X_train.csv', index_col=[0, 1], parse_dates=True, date_format="%Y-%m-%d")
+    y_train = pd.read_csv('data/processed/y_train.csv', index_col=[0, 1], parse_dates=True, date_format="%Y-%m-%d").iloc[:, 0]  # Convert to Series
 
     unique_dates = sorted(X_train.index.get_level_values("date").unique())
     print(f"Unique training dates: {len(unique_dates)} (from {unique_dates[0].date()} to {unique_dates[-1].date()})")
 
+    # Generate both schemes
+    blocking_splits = list(blocking_time_series_split(unique_dates, n_splits=5, min_train_days=504, gap=2))
+    walk_splits = list(walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2))
+    
+    print(f"Blocking CV folds generated: {len(blocking_splits)}")
+    print(f"Walk-Forward CV folds generated: {len(walk_splits)}")
+    
+    # ── Test walk-forward split ────────────────────────────────────────────
+    print("\n=== Walk-Forward Split ===")
+    wf_splits = list(walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2))
+
+    for i, (tr, val) in enumerate(wf_splits):
+        print(f"Fold {i:2d} | "
+              f"Train: {tr[0].date()} → {tr[-1].date()} ({len(tr)} days) | "
+              f"Val:   {val[0].date()} → {val[-1].date()} ({len(val)} days)")
+
+    # Verify expanding: each fold's training set is a superset of the previous
+    for i in range(1, len(wf_splits)):
+        prev_train = set(wf_splits[i-1][0])
+        curr_train = set(wf_splits[i][0])
+        assert prev_train.issubset(curr_train), \
+            f"Walk-forward fold {i} training set is not a superset of fold {i-1}!"
+    print("✓ Walk-forward training sets are strictly expanding")
+
+    # Visualisations for the report
+    plot_cv_scheme(walk_splits, unique_dates, "Walk-Forward (Time Series) Split", "Time_series_split.png")
+    
+    # Safety assertion (no test leakage)
+    for name, splits in [("Blocking", blocking_splits), ("Walk-Forward", walk_splits)]:
+        for train_d, val_d in splits:
+            assert max(val_d) < pd.to_datetime("2017-01-01"), f"{name} validation leaks into test period!"
+    
+    # Choose one for the grid search 
+    chosen_mode = "walk_forward"  # or "blocking"
+    cv_splits = list(date_aware_split(unique_dates, n_splits=5 if chosen_mode == "blocking" else 10,
+                                      min_train_days=504, gap=2, mode=chosen_mode))
+    print(f"\nUsing {chosen_mode.upper()} CV for grid search with {len(cv_splits)} folds.")
+    print("CV visualisations saved → results/cross-validation/")
+    print("Leakage-free date-aware splitting ready for grid search.")
 
 if __name__ == "__main__":
     main()
