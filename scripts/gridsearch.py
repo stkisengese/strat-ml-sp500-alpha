@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import os
+from datetime import timedelta
 
 def dates_to_mask(df: pd.DataFrame, dates: np.ndarray) -> pd.Series:
     """Convert set of dates to boolean row mask on MultiIndex (date, ticker)."""
@@ -50,6 +51,30 @@ def walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2):
             break
         yield unique_dates[:train_end], unique_dates[val_start:val_end]
 
+def plot_cv_scheme(cv_splits, unique_dates, title, filename):
+    """Save a visualisation of the cross-validation scheme."""
+    fig, ax = plt.subplots(figsize=(14, 7))
+    for fold, (train_d, val_d) in enumerate(cv_splits):
+        # Train
+        ax.hlines(fold, train_d[0], train_d[-1], colors='blue', linewidth=12, label='Train' if fold == 0 else "")
+        # Val
+        ax.hlines(fold, val_d[0], val_d[-1], colors='orange', linewidth=12, label='Validation' if fold == 0 else "")
+        # Gap
+        gap_start = train_d[-1] + timedelta(days=1)
+        gap_end = val_d[0] - timedelta(days=1)
+        if gap_start < gap_end:
+            ax.hlines(fold, gap_start, gap_end, colors='grey', linewidth=8, label='Gap' if fold == 0 else "")
+    # Test set (red)
+    ax.hlines(-1, pd.to_datetime("2017-01-01"), unique_dates[-1], colors='red', linewidth=12, label='Test Set')
+    ax.set_yticks(range(len(cv_splits)))
+    ax.set_yticklabels([f"Fold {i}" for i in range(len(cv_splits))])
+    ax.set_title(title)
+    ax.set_xlabel("Date")
+    ax.legend(loc="upper left")
+    plt.grid(True, alpha=0.3)
+    os.makedirs("results/cross-validation", exist_ok=True)
+    plt.savefig(f"results/cross-validation/{filename}", dpi=150, bbox_inches="tight")
+    plt.close()
 
 def main():
     # Load the clean processed data from features_engineering.py
