@@ -74,5 +74,18 @@ def main():
     positions = signal_to_positions(full_signal, k=10)
     cum_pnl = calculate_cumulative_pnl(positions, target_returns.reindex(positions.index))
 
+    # 5. Load S&P 500 benchmark data for comparison
+    spx = pd.read_csv("data/HistoricalPrices.csv", parse_dates=["Date"], date_format="%m/%d/%y")
+    spx = spx.rename(columns={"Date": "date", " Close": "close"}).set_index("date").sort_index()
+    spx_daily_return = np.log(spx["close"] / spx["close"].shift(1))
+    spx_cum_pnl = spx_daily_return.cumsum().reindex(cum_pnl.index).ffill()
+
+    # 6. Generate visualizations
+    print("Generating performance plots...")
+    plot_strategy_performance(cum_pnl, spx_cum_pnl)
+
+    print("\n Backtesting COMPLETE.")
+    print("   • Performance plot saved to: results/strategy/strategy.png")
+
 if __name__ == "__main__":
     main()
