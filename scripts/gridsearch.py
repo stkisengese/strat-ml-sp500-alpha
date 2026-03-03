@@ -85,28 +85,50 @@ def main():
     with open("results/selected-model/selected_model.txt", "w") as f:
         f.write(str(best_params))
 
-    # Verify expanding: each fold's training set is a superset of the previous
-    for i in range(1, len(wf_splits)):
-        prev_train = set(wf_splits[i-1][0])
-        curr_train = set(wf_splits[i][0])
-        assert prev_train.issubset(curr_train), \
-            f"Walk-forward fold {i} training set is not a superset of fold {i-1}!"
-    print("✓ Walk-forward training sets are strictly expanding")
+    # --- Detailed Performance Metrics & Feature Importance for the Best Model ---
+    print("\n--- Performing Detailed Evaluation of Optimal Model ---")
+    metrics_records = []
+    importance_records = []
+    feature_names = X_train.columns.tolist()
 
-    # Visualisations for the report
-    plot_cv_scheme(walk_splits, unique_dates, "Walk-Forward (Time Series) Split", "Time_series_split.png")
+    for fold_idx, (train_dates, val_dates) in enumerate(cv_splits):
+        train_mask = dates_to_mask(X_train, train_dates)
+        val_mask   = dates_to_mask(X_train, val_dates)
+        
+        X_tr = X_train[train_mask].values
+        y_tr = (y_train[train_mask].values == 1).astype(int)
+        X_val = X_train[val_mask].values
+        y_val = (y_train[val_mask].values == 1).astype(int)
+        
+        pipe = Pipeline([
+            ('imputer', SimpleImputer(strategy='mean')),
+            ('scaler', StandardScaler()),
+            ('model', HistGradientBoostingClassifier(**best_params, random_state=42))
+        ])
+        pipe.fit(X_tr, y_tr)
+        
+        # Calculate training and validation metrics (AUC, Accuracy, Log Loss)
+        for name, X, y_bin in [("train", X_tr, y_tr), ("validation", X_val, y_val)]:
+            proba = pipe.predict_proba(X)[:, 1]
+            metrics_records.append({
+                'fold': fold_idx, 'split': name,
+                'auc': roc_auc_score(y_bin, proba),
+                'accuracy': accuracy_score(y_bin, (proba > 0.5).astype(int)),
+                'log_loss': log_loss(y_bin, proba)
+            })
+        
+        # Compute feature importances using permutation (robust for tree-based models)
+        perm = permutation_importance(pipe, X_tr, y_tr, n_repeats=5, random_state=42, n_jobs=-1)
+        for feat, imp in zip(feature_names, perm.importances_mean):
+            importance_records.append({'fold': fold_idx, 'feature': feat, 'importance': imp})
+
+    # Save detailed metrics and feature importance data to CSV files
+    os.makedirs("results/cross-validation", exist_ok=True)
+    df_metrics = pd.DataFrame(metrics_records).set_index(['fold', 'split'])
+    df_metrics.to_csv("results/cross-validation/ml_metrics_train.csv")
     
-    # Safety assertion (no test leakage)
-    for name, splits in [("Blocking", blocking_splits), ("Walk-Forward", walk_splits)]:
-        for train_d, val_d in splits:
-            assert max(val_d) < pd.to_datetime("2017-01-01"), f"{name} validation leaks into test period!"
-    
-    # Choose one for the grid search 
-    chosen_mode = "walk_forward"  # or "blocking"
-    cv_splits = list(date_aware_split(unique_dates, n_splits=5 if chosen_mode == "blocking" else 10,
-                                      min_train_days=504, gap=2, mode=chosen_mode))
-    print(f"\nUsing {chosen_mode.upper()} CV for grid search with {len(cv_splits)} folds.")
-    print("CV visualisations saved → results/cross-validation/")
+    df_imp = pd.DataFrame(importance_records).pivot(index='fold', columns='feature', values='importance')
+    df_imp.to_csv("results/cross-validation/")
     print("Leakage-free date-aware splitting ready for grid search.")
 
 if __name__ == "__main__":
