@@ -20,7 +20,8 @@ The objective is to predict the sign of forward returns for individual S&P 500 s
 strat-ml-sp500-alpha/
 ├── data/
 │   ├── processed/            # Cleaned, leakage-free train/test matrices
-│   └── all_stocks_5yr.csv    # Raw OHLCV data for S&P 500 constituents
+│   ├── all_stocks_5yr.csv    # Raw OHLCV data for S&P 500 constituents
+│   └── HistoricalPrices.csv  # Raw  open-high-low-close (OHLC) SP500 index data
 ├── results/
 │   ├── cross-validation/     # CV visualizations, metrics, and feature importances
 │   ├── selected-model/       # Serialized pipeline (pkl) and selection reports
@@ -42,11 +43,20 @@ strat-ml-sp500-alpha/
 
 ### 1. Environment Setup
 It is recommended to use a dedicated environment (e.g., `sp500_env`).
+```bash
+conda create -n sp500_env python=3.11
+conda activate sp500_env
+```
 
 ```bash
 # Clone the repository
 git clone https://github.com/stkisengese/strat-ml-sp500-alpha.git
 cd strat-ml-sp500-alpha
+
+#Download datasets and save in data/ folder in the root
+wget  https://assets.01-edu.org/ai-branch/project4/project04-20221031T173034Z-001.zip
+unzip -j project04-20221031T173034Z-001.zip -d data/
+rm project04-20221031T173034Z-001.zip
 
 # Install dependencies
 pip install -r requirements.txt
