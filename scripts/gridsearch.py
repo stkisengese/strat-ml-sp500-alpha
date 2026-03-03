@@ -128,8 +128,12 @@ def main():
     df_metrics.to_csv("results/cross-validation/ml_metrics_train.csv")
     
     df_imp = pd.DataFrame(importance_records).pivot(index='fold', columns='feature', values='importance')
-    df_imp.to_csv("results/cross-validation/")
-    print("Leakage-free date-aware splitting ready for grid search.")
+    df_imp.to_csv("results/cross-validation/top_10_feature_importance.csv")
+
+    plot_learning_curves(cv_splits, df_metrics)
+
+    print("\nGrid Search and Detailed Evaluation COMPLETE.")
+    print("Next Step: Run model_selection.py to finalize the pipeline.")
 
 if __name__ == "__main__":
     main()
