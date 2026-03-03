@@ -20,7 +20,7 @@ def compute_features(group):
     rsi = ta.rsi(close, length=14)
     if rsi is not None:
         group['rsi']        = rsi.values
-        group['rsi_change'] = rsi.diff().values  # Captures momentum acceleration/deceleration
+        group['rsi_change'] = rsi.diff().fillna(0).values  # Captures momentum acceleration/deceleration
 
     # MACD (12, 26, 9): Trend-following momentum indicator.
     # We normalize these by price to ensure comparability across different stock price scales.
@@ -29,6 +29,26 @@ def compute_features(group):
         group['macd']        = (macd_df['MACD_12_26_9']  / close).values
         group['macd_signal'] = (macd_df['MACDs_12_26_9'] / close).values
         group['macd_hist']   = (macd_df['MACDh_12_26_9'] / close).values
+
+    # 1. Volatility: ATR (Normalized by close price)
+    atr = ta.atr(group['high'], group['low'], group['close'], length=14)
+    if atr is not None:
+        group['atr_norm'] = atr / group['close']
+
+    # 2. Trend Strength: ADX
+    adx = ta.adx(group['high'], group['low'], group['close'], length=14)
+    if adx is not None:
+        group['adx'] = adx['ADX_14'] / 100.0  # Normalized to [0, 1]
+
+    # 3. Volume: OBV (Change)
+    obv = ta.obv(group['close'], group['volume'])
+    if obv is not None:
+        group['obv_change'] = obv.pct_change().fillna(0).values  # Percentage change in OBV to capture volume momentum
+
+    # 4. Range: Williams %R
+    willr = ta.willr(group['high'], group['low'], group['close'], length=14)
+    if willr is not None:
+        group['willr'] = willr / -100.0  # Normalized to [0, 1]
 
     return group
 
@@ -61,8 +81,9 @@ def run_data_validation_assertions(X_train, y_train, X_test, y_test, features):
 
 
 def main():
-    features = ['bb_percent', 'bb_width', 'rsi', 'rsi_change',
-                'macd', 'macd_signal', 'macd_hist']
+    print("--- Starting Feature Engineering ---")
+    features = ['bb_percent', 'bb_width', 'rsi', 'rsi_change', 'macd', 'macd_signal',
+                'macd_hist', 'atr_norm', 'adx', 'obv_change', 'willr']
 
     print("Loading raw OHLCV data...")
     df = pd.read_csv('data/all_stocks_5yr.csv')
@@ -82,6 +103,14 @@ def main():
     # --- Feature Engineering ---
     print("Calculating technical indicators...")
     df = df.groupby(level='Name', group_keys=False).apply(compute_features)
+
+    print("Applying cross-sectional standardization (Z-scores)...")
+    for feat in features:
+        # transform to get mean/std for the date but keep original index
+        daily_mean = df.groupby(level='date')[feat].transform('mean')
+        daily_std = df.groupby(level='date')[feat].transform('std')
+        # Avoid division by zero if std is 0
+        df[feat] = (df[feat] - daily_mean) / daily_std.replace(0, 1)
 
     # Remove rows with NaNs introduced by rolling windows or target shifts
     df = df.dropna(subset=features + ['target'])
