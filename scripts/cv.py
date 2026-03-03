@@ -118,6 +118,25 @@ def plot_cv_scheme(cv_splits: List[Tuple[np.ndarray, np.ndarray]], unique_dates:
     plt.close()
 
 
+def plot_learning_curves(cv_splits, df_metrics):
+    """Plots the AUC learning curves for training and validation across the cross-validation folds."""
+    folds = range(len(cv_splits))
+    train_auc = df_metrics.loc[(slice(None), 'train'), 'auc'].values
+    val_auc   = df_metrics.loc[(slice(None), 'validation'), 'auc'].values
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(folds, train_auc, 'b-o', label='Train AUC')
+    plt.plot(folds, val_auc, color='orange', marker='o', linestyle='-', label='Validation AUC')
+    plt.axhline(0.5, color='gray', linestyle='--', label='Random Benchmark')
+    plt.title('AUC Performance across Walk-Forward Folds')
+    plt.xlabel('Fold Index')
+    plt.ylabel('AUC Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.savefig("results/cross-validation/metric_train.png", dpi=150, bbox_inches='tight')
+    plt.close()
+
+
 def assert_no_test_leakage(cv_splits: List[Tuple[np.ndarray, np.ndarray]], test_cutoff: str = '2017-01-01'):
     """
     Verification utility to ensure no training or validation date overlaps with the test period.
