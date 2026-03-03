@@ -67,5 +67,33 @@ def main():
         ))
     ])
 
+    # Load the full training dataset for the final model fit
+    X_train = pd.read_csv("data/processed/X_train.csv", parse_dates=["date"]).set_index(["date", "Name"])
+    y_train = pd.read_csv("data/processed/y_train.csv", parse_dates=["date"]).set_index(["date", "Name"]).iloc[:, 0]
+
+    print("Fitting the final model on the full training dataset...")
+    final_pipeline.fit(X_train.values, (y_train.values == 1).astype(int))
+
+    # Serialize and save the final pipeline and a summary report
+    os.makedirs("results/selected-model", exist_ok=True)
+    joblib.dump(final_pipeline, "results/selected-model/selected_model.pkl")
+
+    report_content = (
+        f"Selected Model: HistGradientBoostingClassifier\n"
+        f"Hyperparameters:\n"
+        f"    max_iter       = {best_params.get('max_iter')}\n"
+        f"    max_depth      = {best_params.get('max_depth')}\n"
+        f"    learning_rate  = {best_params.get('learning_rate')}\n"
+        f"Mean Validation AUC: {val_auc_mean:.4f} (± {val_auc_std:.4f})\n"
+        f"Training-Validation Gap: {overfit_gap:.4f}\n"
+        f"Selection Rationale: Best performance on Walk-Forward CV with low variance and minimal overfitting.\n"
+    )
+
+    with open("results/selected-model/selected_model.txt", "w") as f:
+        f.write(report_content)
+
+    print("\n✅ Final model and selection report saved to results/selected-model/")
+    print("Next Step: Run create_signal.py to generate out-of-sample predictions.")
+
 if __name__ == "__main__":
     main()
