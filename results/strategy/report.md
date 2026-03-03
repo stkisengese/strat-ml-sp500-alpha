@@ -1,11 +1,15 @@
 # ML-Driven S&P 500 Long-Short Trading Strategy – Final Report
 
 ## 1. Features Used
-The model uses 7 stationary, leakage-free technical features (all computed with trailing windows only):
+The model uses 11 stationary, leakage-free technical features (all computed with trailing windows only):
 
-- **Bollinger Bands** (`bb_percent`, `bb_width`): Measures where price sits inside the bands and volatility regime (squeeze → expansion).
-- **RSI** (`rsi`, `rsi_change`): Momentum oscillator [0–100] + its first difference (acceleration).
-- **MACD** (`macd`, `macd_signal`, `macd_hist`): Normalised by close price to be comparable across tickers.
+- **Bollinger Bands** (`bb_percent`, `bb_width`): Measures price position relative to volatility bands and the volatility regime (squeeze → expansion).
+- **RSI** (`rsi`, `rsi_change`): Momentum oscillator [0–100] and its first difference (acceleration).
+- **MACD** (`macd`, `macd_signal`, `macd_hist`): Trend-following momentum indicators, normalized by price for cross-ticker comparability.
+- **ATR** (`atr_norm`): Average True Range normalized by price to capture relative volatility.
+- **ADX** (`adx`): Average Directional Index (normalized to [0, 1]) to measure trend strength.
+- **OBV** (`obv_change`): Percentage change in On-Balance Volume to capture volume-driven momentum.
+- **Williams %R** (`willr`): Momentum indicator measuring overbought/oversold levels (normalized to [0, 1]).
 
 All features were computed **after** the 2017 train/test split on each ticker independently → no leakage.
 
@@ -13,16 +17,29 @@ All features were computed **after** the 2017 train/test split on each ticker in
 - **Imputer**: `SimpleImputer(strategy='mean')`
 - **Scaler**: `StandardScaler()`
 - **Model**: `HistGradientBoostingClassifier(max_iter=200, max_depth=5, learning_rate=0.1)`
-- No dimensionality reduction (PCA) needed — only 7 features.
+- No dimensionality reduction (PCA) needed — 11 features.
 
 **Hyperparameters** chosen via manual grid search (18 combinations) on walk-forward CV.
 
-## 3. Cross-Validation
+## 3. Cross-Validation & Feature Importance
 - **Scheme**: Walk-Forward (expanding window) — chosen because blocking was impossible with only 947 training days.
 - 10 folds, each with ≥504 training days (2 trading years) + 44-day validation + gap=2 days.
 - Visualisation: `results/cross-validation/Time_series_split.png`
 - Mean Validation AUC = **0.5185** (±0.0098)
 - Train AUC = **0.5726** (±0.0075) → overfit gap (**0.0541**) → slightly higher but acceptable.
+
+### Feature Importance (Permutation-based)
+Based on `results/cross-validation/top_10_feature_importance.csv`, the model relies most heavily on price-range and volume indicators:
+
+| Feature      | Importance (Mean ΔAUC) |
+|--------------|------------------------|
+| `bb_percent` | 0.0138                 |
+| `willr`      | 0.0130                 |
+| `obv_change` | 0.0117                 |
+| `rsi`        | 0.0098                 |
+| `macd`       | 0.0094                 |
+
+`bb_percent` and `willr` (Williams %R) are the most influential, suggesting the model is primarily finding signals in overbought/oversold price extremes. `obv_change` is also a significant contributor, indicating that volume momentum is a key secondary signal.
 
 ## 4. Strategy Description
 - **Type**: Stock-picking long-short (k=10)
