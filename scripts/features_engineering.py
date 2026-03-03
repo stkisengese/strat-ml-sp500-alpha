@@ -105,12 +105,12 @@ def main():
     df = df.groupby(level='Name', group_keys=False).apply(compute_features)
 
     print("Applying cross-sectional standardization (Z-scores)...")
-    for feat in features:
-        # transform to get mean/std for the date but keep original index
-        daily_mean = df.groupby(level='date')[feat].transform('mean')
-        daily_std = df.groupby(level='date')[feat].transform('std')
-        # Avoid division by zero if std is 0
-        df[feat] = (df[feat] - daily_mean) / daily_std.replace(0, 1)
+    # Standardize features within each date to ensure comparability across stocks and prevent scale issues.
+    # transform is used to maintain the original DataFrame structure while applying group-wise operations.
+    grouped = df.groupby(level='date')[features]
+    mean = grouped.transform('mean')
+    std  = grouped.transform('std').replace(0, 1)  # Prevent division by zero
+    df[features] = (df[features] - mean) / std
 
     # Remove rows with NaNs introduced by rolling windows or target shifts
     df = df.dropna(subset=features + ['target'])
