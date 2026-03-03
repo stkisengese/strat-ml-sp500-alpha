@@ -13,7 +13,7 @@ def blocking_time_series_split(
     unique_dates: np.ndarray,
     n_splits: int = 10,
     min_train_days: int = 504,
-    val_days: int = 63,
+    val_days: int = 44,
     gap: int = 2
 ) -> Iterator[Tuple[np.ndarray, np.ndarray]]:
     """
@@ -39,7 +39,7 @@ def walk_forward_split(
     unique_dates: np.ndarray,
     n_splits: int = 10,
     min_train_days: int = 504,
-    val_days: int = 63,
+    val_days: int = 44,
     gap: int = 2
 ) -> Iterator[Tuple[np.ndarray, np.ndarray]]:
     """
