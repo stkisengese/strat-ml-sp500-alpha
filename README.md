@@ -63,7 +63,7 @@ Execute the scripts in sequence to reproduce the full analysis:
 
 ---
 
-## 📊 Methodology Summary
+## 📊 Methodology & Performance
 
 ### 1. Feature Engineering (11 Indicators)
 We utilize a robust set of technical indicators capturing various market regimes:
@@ -71,13 +71,25 @@ We utilize a robust set of technical indicators capturing various market regimes
 - **Momentum:** RSI (Level & Change), MACD (Line, Signal, Hist), Williams %R.
 - **Trend/Volume:** ADX (Trend Strength), OBV (Volume Momentum).
 
-### 2. Machine Learning Pipeline
+### 2. Validation Strategy: Walk-Forward Cross-Validation
+To ensure temporal integrity and simulate real-world trading, we employ a 10-fold Walk-Forward expanding window scheme.
+
+![CV Scheme](./results/cross-validation/Time_series_split.png)
+
+### 3. Model Training Metrics
 The framework utilizes `HistGradientBoostingClassifier` within a pipeline that includes mean imputation and standard scaling. The model is optimized for AUC, prioritizing features that offer stable predictive signals across time-series folds.
 
-### 3. Backtesting Framework
+The following plot shows the stability of training and validation metrics.
+
+![Learning Curves](./results/cross-validation/metric_train.png)
+
+### 4. Backtesting Framework
 - **Strategy:** Rank-based Long-Short (Top 10 / Bottom 10 stocks).
 - **Execution:** $1 daily absolute investment, market-neutral.
 - **Target:** Sign of return for the interval $[D+1 \rightarrow D+2]$, predicted using information available at $D$.
+- **Performance:** Cumulative PnL of the strategy versus the S&P 500 benchmark.
+
+![Strategy PnL](./results/strategy/strategy.png)
 
 ---
 
@@ -87,6 +99,6 @@ The current optimized model (`max_iter=200`, `max_depth=5`, `lr=0.1`) achieved a
 ---
 
 ## ⚖️ License
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See [`LICENSE`](./LICENSE) for more information.
 
 **Author:** [Stephen Kisengese](github.com/stkisengese)
