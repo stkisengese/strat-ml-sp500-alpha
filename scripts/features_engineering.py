@@ -97,8 +97,8 @@ def main():
     # log_return[t] is the return from t-1 to t. Therefore, log_return[D+2] is the return (D+1 -> D+2).
     # We shift this value back by 2 to align it with features on row D.
     print("Calculating target variable...")
-    df['log_return'] = df.groupby(level='Name')['close'].transform(lambda x: np.log(x / x.shift(1)))
-    df['target'] = df.groupby(level='Name')['log_return'].transform(lambda x: np.sign(x.shift(-2)))
+    df['log_return'] = (np.log(df['close']) - np.log(df.groupby(level='Name')['close'].shift(1)))
+    df['target'] = np.sign(df.groupby(level='Name')['log_return'].shift(-2))
 
     # --- Feature Engineering ---
     print("Calculating technical indicators...")
