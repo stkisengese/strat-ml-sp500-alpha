@@ -137,6 +137,27 @@ def plot_learning_curves(cv_splits, df_metrics):
     plt.close()
 
 
+def plot_strategy_performance(cum_pnl: pd.Series, spx_cum_pnl: pd.Series):
+    plt.figure(figsize=(14, 8))
+    plt.plot(cum_pnl.index, cum_pnl, label="ML Strategy (Long-Short 10)", color="blue", linewidth=2)
+    plt.plot(spx_cum_pnl.index, spx_cum_pnl, label="S&P 500 Index (Benchmark)", color="black", linewidth=2)
+
+    # Indicate the transition from training/validation to the final out-of-sample test set
+    plt.axvline(pd.to_datetime("2017-01-01"), color="red", linestyle="--", linewidth=1.5, label="Out-of-Sample Start")
+    plt.fill_between(cum_pnl.index, cum_pnl.min(), cum_pnl.max(), 
+                     where=cum_pnl.index >= "2017-01-01", color="red", alpha=0.05)
+
+    plt.title("Cumulative Strategy Performance vs S&P 500 Benchmark")
+    plt.xlabel("Date")
+    plt.ylabel("Cumulative Returns (Log Scale)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+
+    os.makedirs("results/strategy", exist_ok=True)
+    plt.savefig("results/strategy/strategy.png", dpi=150)
+    plt.close()
+
 def assert_no_test_leakage(cv_splits: List[Tuple[np.ndarray, np.ndarray]], test_cutoff: str = '2017-01-01'):
     """
     Verification utility to ensure no training or validation date overlaps with the test period.
