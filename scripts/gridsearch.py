@@ -75,7 +75,13 @@ def main():
     )
     
     # Identify the best hyperparameter set based on mean validation AUC
-    best_idx = np.argmax([r[3] for r in results])
+    # Calculate a 'Risk-Adjusted' performance score
+    mean_aucs = np.array([r[3] for r in results])
+    std_aucs = np.array([np.std(r[4]) for r in results])
+
+    # Select model with best balance of high AUC and low variance
+    performance_score = mean_aucs / (std_aucs + 1e-6)  # Add small constant to prevent division by zero
+    best_idx = np.argmax(performance_score)
     best_n_est, best_max_d, best_lr, best_mean_auc, _ = results[best_idx]
     best_params = {'max_iter': best_n_est, 'max_depth': best_max_d, 'learning_rate': best_lr}
     
