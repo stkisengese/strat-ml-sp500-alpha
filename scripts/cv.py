@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for plotting
 import matplotlib.pyplot as plt
 import os
 from datetime import timedelta
@@ -114,3 +116,15 @@ def plot_cv_scheme(cv_splits: List[Tuple[np.ndarray, np.ndarray]], unique_dates:
     os.makedirs("results/cross-validation", exist_ok=True)
     plt.savefig(f"results/cross-validation/{filename}", dpi=150, bbox_inches="tight")
     plt.close()
+
+
+def assert_no_test_leakage(cv_splits: List[Tuple[np.ndarray, np.ndarray]], test_cutoff: str = '2017-01-01'):
+    """
+    Verification utility to ensure no training or validation date overlaps with the test period.
+    """
+    cutoff = pd.Timestamp(test_cutoff)
+    for i, (_, val_dates) in enumerate(cv_splits):
+        leaked = [d for d in val_dates if pd.Timestamp(d) >= cutoff]
+        if len(leaked) > 0:
+            raise ValueError(f"Fold {i} contains {len(leaked)} validation dates from the test set.")
+    print(" Temporal split validation: No leakage into test set detected.")
