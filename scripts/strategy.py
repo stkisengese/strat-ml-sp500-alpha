@@ -41,3 +41,25 @@ def calculate_cumulative_pnl(positions: pd.DataFrame, returns: pd.Series) -> pd.
     # Daily PnL = Sum(Position_D * Return_D+1_to_D+2)
     daily_pnl = (positions["position"] * returns).groupby(level="date").sum()
     return daily_pnl.cumsum()
+
+def main():
+    print("--- Starting Strategy Backtesting & Performance Analysis ---")
+
+    # 1. Load walk-forward ML signals (training period)
+    signal_train_path = "results/selected-model/ml_signal.csv"
+    if not os.path.exists(signal_train_path):
+        raise FileNotFoundError(f"Signal file not found at {signal_train_path}. Run create_signal.py first.")
+    ml_signal_train = pd.read_csv(signal_train_path, parse_dates=["date"]).set_index(["date", "Name"])["ml_signal"]
+
+    # 2. Generate out-of-sample test signals (2017+) using the final trained model
+    X_test = pd.read_csv("data/processed/X_test.csv", parse_dates=["date"]).set_index(["date", "Name"])
+    pipe = joblib.load("results/selected-model/selected_model.pkl")
+    
+    test_proba = pipe.predict_proba(X_test.values)[:, 1]
+    ml_signal_test = pd.Series(test_proba, index=X_test.index, name="ml_signal")
+
+    # Concatenate train and test signals for a full-period analysis
+    full_signal = pd.concat([ml_signal_train, ml_signal_test]).sort_index()
+
+if __name__ == "__main__":
+    main()
