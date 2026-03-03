@@ -12,7 +12,7 @@ All features were computed **after** the 2017 train/test split on each ticker in
 ## 2. ML Pipeline
 - **Imputer**: `SimpleImputer(strategy='mean')`
 - **Scaler**: `StandardScaler()`
-- **Model**: `HistGradientBoostingClassifier(max_iter=100, max_depth=3, learning_rate=0.05)`
+- **Model**: `HistGradientBoostingClassifier(max_iter=200, max_depth=5, learning_rate=0.1)`
 - No dimensionality reduction (PCA) needed — only 7 features.
 
 **Hyperparameters** chosen via manual grid search (18 combinations) on walk-forward CV.
@@ -21,8 +21,8 @@ All features were computed **after** the 2017 train/test split on each ticker in
 - **Scheme**: Walk-Forward (expanding window) — chosen because blocking was impossible with only 947 training days.
 - 10 folds, each with ≥504 training days (2 trading years) + 44-day validation + gap=2 days.
 - Visualisation: `results/cross-validation/Time_series_split.png`
-- Mean Validation AUC = **0.5096** (±0.0160)
-- Train AUC = **0.5287** (±0.0028) → very small overfit gap (0.0191) → acceptable.
+- Mean Validation AUC = **0.5185** (±0.0098)
+- Train AUC = **0.5726** (±0.0075) → overfit gap (**0.0541**) → slightly higher but acceptable.
 
 ## 4. Strategy Description
 - **Type**: Stock-picking long-short (k=10)
@@ -39,18 +39,16 @@ All features were computed **after** the 2017 train/test split on each ticker in
 
 | Period | PnL      | Max_Drawdown | Sharpe Ratio | Calmar Ratio |
 |--------|----------|--------------|--------------|--------------|
-| Train  | -0.0658  | 5.5053       | -0.3815      | -0.0068      |
-| Test   | -0.2228  | 0.0000*      | -1.9169      | 0.0000       |
-| S&P 500| +0.6526  | 0.3511       | +0.7144      | +0.6551      |
-
-\* Max drawdown = 0 in test because cumulative PnL is monotonically decreasing.
+| Train  | +0.0280  | 11.8323      | +0.1511      | +0.0014      |
+| Test   | -0.1290  | 5.4090       | -1.9169      | -0.0219      |
+| S&P 500| +0.6526  | 0.3511       | +0.7134      | +0.6542      |
 
 **Honest Interpretation**:
 The strategy **does not outperform** the S&P 500 on the test set (2017–2018).  
-It actually loses money (-22.3%) while the benchmark gains +65.3%.  
-Train performance is also flat-to-negative.  
+While performance improved compared to the baseline (Test PnL -12.9% vs -22.3%), it still loses money while the benchmark gains +65.3%.  
+Train performance turned slightly positive (+2.8%), but with a very high drawdown and low Sharpe ratio.
 
-This is expected: the model only achieved AUC ≈ 0.51 (very weak edge). Pure technical indicators on daily data in a survivor-biased dataset rarely produce tradable alpha without costs, regime detection, or more sophisticated features.
+This is expected: even with improved AUC (≈0.52), the edge remains very weak. Pure technical indicators on daily data in a survivor-biased dataset rarely produce tradable alpha without costs, regime detection, or more sophisticated features.
 
 ## 6. Limitations
 - Survivor bias (only stocks that survived until 2018).
