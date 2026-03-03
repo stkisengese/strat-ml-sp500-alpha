@@ -33,3 +33,11 @@ def signal_to_positions(signal: pd.Series, k: int = 10) -> pd.DataFrame:
         daily_positions.append(pos)
     
     return pd.concat(daily_positions).sort_index().to_frame("position")
+
+def calculate_cumulative_pnl(positions: pd.DataFrame, returns: pd.Series) -> pd.Series:
+    """
+    Computes daily strategy PnL by aligning positions with forward returns.
+    """
+    # Daily PnL = Sum(Position_D * Return_D+1_to_D+2)
+    daily_pnl = (positions["position"] * returns).groupby(level="date").sum()
+    return daily_pnl.cumsum()
