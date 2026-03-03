@@ -60,3 +60,19 @@ def walk_forward_split(
         
         yield unique_dates[:train_end], unique_dates[val_start:val_end]
 
+
+# --- Utility Functions ---
+
+def dates_to_mask(df: pd.DataFrame, dates: np.ndarray) -> pd.Series:
+    """
+    Generates a boolean mask for a MultiIndex DataFrame based on a list of dates.
+    Assumes 'date' is one of the index levels.
+    """
+    return df.index.get_level_values('date').isin(dates)
+
+
+def get_unique_dates(df: pd.DataFrame) -> np.ndarray:
+    """
+    Extracts and sorts the unique calendar dates from a MultiIndex DataFrame.
+    """
+    return np.sort(df.index.get_level_values('date').unique())
