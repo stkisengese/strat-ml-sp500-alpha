@@ -1,16 +1,16 @@
 # S&P 500 Alpha Generation: ML-Driven Long-Short Framework
 
-This repository implements a complete, end-to-end quantitative trading pipeline designed to generate an alpha signal for the S&P 500 constituents using Machine Learning. The project adheres to professional quantitative standards, focusing on rigorous **leakage-free** feature engineering, **date-aware** time-series cross-validation, and a **rank-based** stock-picking strategy.
+This repository implements a professional-grade, end-to-end quantitative trading pipeline designed to generate alpha signals for S&P 500 constituents using Machine Learning. The framework emphasizes **leakage-free** feature engineering, **date-aware** time-series cross-validation, and a **rank-based** stock-picking strategy.
 
 ## 🚀 Project Overview
 
-The core objective is to predict the sign of the next-day return for individual S&P 500 stocks and convert those predictions into a market-neutral long-short strategy.
+The objective is to predict the sign of forward returns for individual S&P 500 stocks and translate those predictions into a market-neutral long-short strategy. The pipeline is designed to be robust, reproducible, and ready for systematic evaluation.
 
 ### Key Technical Pillars:
-- **Leakage-Free Feature Engineering:** All features are computed per-ticker using trailing windows only.
-- **Stationarity:** Target and features are constructed to ensure stationarity, mitigating the risk of overfitting to non-stationary price data.
-- **Walk-Forward Cross-Validation:** A 10-fold expanding window CV scheme specifically designed for time-series data to simulate realistic deployment.
-- **Date-Aware Splitting:** Prevents data from the same calendar day from appearing in both training and validation sets.
+- **Leakage-Free Feature Engineering:** 11 stationary features computed per-ticker using trailing windows only, preventing look-ahead bias.
+- **Walk-Forward Cross-Validation:** A 10-fold expanding window CV scheme simulates realistic deployment and ensures temporal integrity.
+- **Cross-Sectional Normalization:** Features are Z-score normalized daily across all tickers to maintain comparability and focus on relative performance.
+- **Risk-Adjusted Selection:** Model selection is based on a "Risk-Adjusted" AUC score, balancing high predictive power with low variance across CV folds.
 
 ---
 
@@ -19,28 +19,29 @@ The core objective is to predict the sign of the next-day return for individual 
 ```text
 strat-ml-sp500-alpha/
 ├── data/
-│   ├── processed/            # Cleaned, leakage-free train/test sets
-│   └── *.csv                 # Raw OHLCV data for S&P 500 constituents
+│   ├── processed/            # Cleaned, leakage-free train/test matrices
+│   └── all_stocks_5yr.csv    # Raw OHLCV data for S&P 500 constituents
 ├── results/
 │   ├── cross-validation/     # CV visualizations, metrics, and feature importances
-│   ├── selected-model/       # Serialized model (pkl) and hyperparameter reports
-│   └── strategy/             # PnL plots and performance metrics
+│   ├── selected-model/       # Serialized pipeline (pkl) and selection reports
+│   └── strategy/             # Backtest reports, PnL plots, and metrics
 ├── scripts/
-│   ├── cv.py                 # Core CV splitters and helper utilities (reusable)
-│   ├── features_engineering.py # Pipeline step 1: Feature & target construction
-│   ├── gridsearch.py         # Pipeline step 2: Parallel optimization & fold metrics
-│   ├── model_selection.py    # Pipeline step 3: Final model selection & full-train
-│   ├── create_signal.py      # Pipeline step 4: Out-of-sample signal generation
-│   └── strategy.py           # Pipeline step 5: Backtesting & performance analysis
-├── requirements.txt          # Project dependencies
+│   ├── cv_utils.py           # Core CV splitters and visualization utilities
+│   ├── features_engineering.py # Pipeline 1: Feature & target construction
+│   ├── gridsearch.py         # Pipeline 2: Parallel hyperparameter optimization
+│   ├── model_selection.py    # Pipeline 3: Final model fit & serialization
+│   ├── create_signal.py      # Pipeline 4: Out-of-sample signal generation
+│   └── strategy.py           # Pipeline 5: Strategy backtesting & performance analysis
+├── requirements.txt          # Python dependencies
 └── README.md                 # Project documentation
 ```
 
 ---
 
-## 🛠 Installation & Requirements
+## 🛠 Installation & Usage
 
-Ensure you have Python 3.8+ installed.
+### 1. Environment Setup
+It is recommended to use a dedicated environment (e.g., `sp500_env`).
 
 ```bash
 # Clone the repository
@@ -51,48 +52,41 @@ cd strat-ml-sp500-alpha
 pip install -r requirements.txt
 ```
 
----
+### 2. Execution Pipeline
+Execute the scripts in sequence to reproduce the full analysis:
 
-## ⚙️ Execution Pipeline
-
-To reproduce the results, execute the scripts in the following order:
-
-1.  **Feature Engineering:**
-    ```bash
-    python scripts/features_engineering.py
-    ```
-2.  **Grid Search & Evaluation:** (Optimizes params and computes per-fold metrics)
-    ```bash
-    python scripts/gridsearch.py
-    ```
-3.  **Model Selection:** (Finalizes parameters and fits the model on full train data)
-    ```bash
-    python scripts/model_selection.py
-    ```
-4.  **Signal Generation:** (Produces out-of-sample walk-forward predictions)
-    ```bash
-    python scripts/create_signal.py
-    ```
-5.  **Backtesting:** (Generates PnL plots and strategy analysis)
-    ```bash
-    python scripts/strategy.py
-    ```
+1.  **Feature Engineering:** `python scripts/features_engineering.py`
+2.  **Grid Search:** `python scripts/gridsearch.py`
+3.  **Model Selection:** `python scripts/model_selection.py`
+4.  **Signal Generation:** `python scripts/create_signal.py`
+5.  **Backtesting:** `python scripts/strategy.py`
 
 ---
 
 ## 📊 Methodology Summary
 
-### 1. Features & Target
-We utilize 7 primary technical features: **Bollinger Bands (%B, Width)**, **RSI (Level, Change)**, and **MACD (Line, Signal, Histogram)**. The target is defined as the sign of the forward return:
-$$Target_D = \text{sign}(Return_{D+1 \rightarrow D+2})$$
+### 1. Feature Engineering (11 Indicators)
+We utilize a robust set of technical indicators capturing various market regimes:
+- **Volatility:** Bollinger Band Width, ATR (Normalized).
+- **Momentum:** RSI (Level & Change), MACD (Line, Signal, Hist), Williams %R.
+- **Trend/Volume:** ADX (Trend Strength), OBV (Volume Momentum).
 
-### 2. Validation Strategy
-The pipeline uses a **10-fold Walk-Forward Cross-Validation** to simulate actual trading conditions. Detailed metrics (AUC, Accuracy, Log Loss) and permutation importances are computed for the optimal model across all folds to ensure robustness.
+### 2. Machine Learning Pipeline
+The framework utilizes `HistGradientBoostingClassifier` within a pipeline that includes mean imputation and standard scaling. The model is optimized for AUC, prioritizing features that offer stable predictive signals across time-series folds.
+
+### 3. Backtesting Framework
+- **Strategy:** Rank-based Long-Short (Top 10 / Bottom 10 stocks).
+- **Execution:** $1 daily absolute investment, market-neutral.
+- **Target:** Sign of return for the interval $[D+1 \rightarrow D+2]$, predicted using information available at $D$.
+
+---
+
+## 📉 Latest Results (Summary)
+The current optimized model (`max_iter=200`, `max_depth=5`, `lr=0.1`) achieved a **Mean Validation AUC of 0.5185**, showing a modest but statistically significant edge in a leakage-free environment. Detailed performance metrics and PnL plots are available in `results/strategy/report.md`.
 
 ---
 
 ## ⚖️ License
 Distributed under the MIT License. See `LICENSE` for more information.
 
-**Author:** [Stephen Kisengese](github.com/stkisengese)  
-**Status:** Completed - March 2026
+**Author:** [Stephen Kisengese](github.com/stkisengese)
