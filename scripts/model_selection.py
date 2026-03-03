@@ -6,9 +6,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import HistGradientBoostingClassifier
 
-# Import utility functions from cv.py
-from cv import get_unique_dates
-
 def main():
     print("--- Starting Final Model Selection & Validation ---")
 

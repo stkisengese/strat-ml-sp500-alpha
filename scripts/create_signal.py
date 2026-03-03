@@ -1,10 +1,9 @@
 import pandas as pd
-import numpy as np
 import joblib
 import os
 
-# Import utility functions from cv.py
-from cv import walk_forward_split, dates_to_mask, get_unique_dates
+# Import utility functions from cv_utils.py
+from cv_utils import walk_forward_split, dates_to_mask, get_unique_dates
 
 def main():
     print("--- Starting ML Signal Generation (Walk-Forward) ---")

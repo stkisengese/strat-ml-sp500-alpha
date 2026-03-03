@@ -1,11 +1,8 @@
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import os
 import joblib
-from cv import plot_strategy_performance
+from cv_utils import plot_strategy_performance
 
 def signal_to_positions(signal: pd.Series, k: int = 10) -> pd.DataFrame:
     """

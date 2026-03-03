@@ -10,8 +10,9 @@ from sklearn.metrics import roc_auc_score, accuracy_score, log_loss
 from sklearn.inspection import permutation_importance
 from joblib import Parallel, delayed
 
-# Import cross-validation utilities from cv.py
-from cv import walk_forward_split, dates_to_mask, plot_cv_scheme, get_unique_dates, plot_learning_curves
+# Import cross-validation utilities from cv_utils.py
+from cv_utils import (walk_forward_split, dates_to_mask, plot_cv_scheme,
+                       get_unique_dates, plot_learning_curves)
 
 def evaluate_combo(n_est, max_d, lr, cv_splits, X_train, y_train):
     """
