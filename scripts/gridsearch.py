@@ -50,29 +50,40 @@ def evaluate_combo(n_est, max_d, lr, cv_splits, X_train, y_train):
     return (n_est, max_d, lr, np.mean(fold_val_aucs), fold_val_aucs)
 
 def main():
-    # Load the clean processed data from features_engineering.py
-    print("Loading processed data...")
-    X_train = pd.read_csv('data/processed/X_train.csv', index_col=[0, 1], parse_dates=True, date_format="%Y-%m-%d")
-    y_train = pd.read_csv('data/processed/y_train.csv', index_col=[0, 1], parse_dates=True, date_format="%Y-%m-%d").iloc[:, 0]  # Convert to Series
-
-    unique_dates = sorted(X_train.index.get_level_values("date").unique())
-    print(f"Unique training dates: {len(unique_dates)} (from {unique_dates[0].date()} to {unique_dates[-1].date()})")
-
-    # Generate both schemes
-    blocking_splits = list(blocking_time_series_split(unique_dates, n_splits=5, min_train_days=504, gap=2))
-    walk_splits = list(walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2))
+    print("--- Starting Hyperparameter Optimization ---")
     
-    print(f"Blocking CV folds generated: {len(blocking_splits)}")
-    print(f"Walk-Forward CV folds generated: {len(walk_splits)}")
-    
-    # ── Test walk-forward split ────────────────────────────────────────────
-    print("\n=== Walk-Forward Split ===")
-    wf_splits = list(walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2))
+    # Load processed training data
+    X_train = pd.read_csv("data/processed/X_train.csv", parse_dates=["date"]).set_index(["date", "Name"])
+    y_train = pd.read_csv("data/processed/y_train.csv", parse_dates=["date"]).set_index(["date", "Name"]).iloc[:, 0]
 
-    for i, (tr, val) in enumerate(wf_splits):
-        print(f"Fold {i:2d} | "
-              f"Train: {tr[0].date()} → {tr[-1].date()} ({len(tr)} days) | "
-              f"Val:   {val[0].date()} → {val[-1].date()} ({len(val)} days)")
+    # Generate cross-validation splits based on unique dates
+    unique_dates = get_unique_dates(X_train)
+    cv_splits = list(walk_forward_split(unique_dates, n_splits=10, min_train_days=504, gap=2))
+    
+    # Visualize the CV scheme (Training, Validation, and Gap periods)
+    plot_cv_scheme(cv_splits, unique_dates, "Walk-Forward Time Series Split", "Time_series_split.png")
+
+    # Define hyperparameter combinations for the grid search
+    param_combos = list(product([100, 200, 300], [3, 5, 7], [0.05, 0.1]))
+    
+    # Execute grid search using parallel processing for efficiency
+    print(f"Evaluating {len(param_combos)} combinations in parallel...")
+    results = Parallel(n_jobs=-1, verbose=5)(
+        delayed(evaluate_combo)(n_est, max_d, lr, cv_splits, X_train, y_train)
+        for n_est, max_d, lr in param_combos
+    )
+    
+    # Identify the best hyperparameter set based on mean validation AUC
+    best_idx = np.argmax([r[3] for r in results])
+    best_n_est, best_max_d, best_lr, best_mean_auc, _ = results[best_idx]
+    best_params = {'max_iter': best_n_est, 'max_depth': best_max_d, 'learning_rate': best_lr}
+    
+    print(f"\nOptimal Parameters: {best_params} (Mean Val AUC: {best_mean_auc:.4f})")
+
+    # Save best parameters to a text file for subsequent pipeline steps
+    os.makedirs("results/selected-model", exist_ok=True)
+    with open("results/selected-model/selected_model.txt", "w") as f:
+        f.write(str(best_params))
 
     # Verify expanding: each fold's training set is a superset of the previous
     for i in range(1, len(wf_splits)):
