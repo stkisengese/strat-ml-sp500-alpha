@@ -76,3 +76,41 @@ def get_unique_dates(df: pd.DataFrame) -> np.ndarray:
     Extracts and sorts the unique calendar dates from a MultiIndex DataFrame.
     """
     return np.sort(df.index.get_level_values('date').unique())
+
+
+def plot_cv_scheme(cv_splits: List[Tuple[np.ndarray, np.ndarray]], unique_dates: np.ndarray, title: str, filename: str):
+    """
+    Visualizes the training, gap, and validation periods for each cross-validation fold.
+    Saves the resulting plot to the results/cross-validation/ directory.
+    """
+    fig, ax = plt.subplots(figsize=(14, 7))
+    unique_dates = pd.to_datetime(unique_dates)
+    
+    for fold, (train_d, val_d) in enumerate(cv_splits):
+        train_d = pd.to_datetime(train_d)
+        val_d = pd.to_datetime(val_d)
+        
+        # Plot training window (Blue) and Validation window (Orange)
+        ax.hlines(fold, train_d[0], train_d[-1], colors='blue', linewidth=12, label='Train' if fold == 0 else "")
+        ax.hlines(fold, val_d[0], val_d[-1], colors='orange', linewidth=12, label='Validation' if fold == 0 else "")
+        
+        # Highlight the gap period (Grey)
+        gap_start = train_d[-1] + timedelta(days=1)
+        gap_end = val_d[0] - timedelta(days=1)
+        if gap_start < gap_end:
+            ax.hlines(fold, gap_start, gap_end, colors='grey', linewidth=8, label='Gap' if fold == 0 else "")
+            
+    # Add a reference line for the final out-of-sample test period
+    test_start = pd.to_datetime("2017-01-01")
+    if unique_dates[-1] > test_start:
+        ax.hlines(-1, test_start, unique_dates[-1], colors='red', linewidth=12, label='Test Set')
+        
+    ax.set_yticks(range(-1, len(cv_splits)))
+    ax.set_yticklabels(['Test Period'] + [f"Fold {i}" for i in range(len(cv_splits))])
+    ax.set_title(title)
+    ax.set_xlabel("Date Timeline")
+    ax.legend(loc="upper left")
+    plt.grid(True, alpha=0.3)
+    os.makedirs("results/cross-validation", exist_ok=True)
+    plt.savefig(f"results/cross-validation/{filename}", dpi=150, bbox_inches="tight")
+    plt.close()
