@@ -61,5 +61,18 @@ def main():
     # Concatenate train and test signals for a full-period analysis
     full_signal = pd.concat([ml_signal_train, ml_signal_test]).sort_index()
 
+    # 3. Load actual pricing data to compute benchmark returns
+    # The signal on day D predicts the return observed between D+1 and D+2.
+    raw = pd.read_csv("data/all_stocks_5yr.csv", parse_dates=["date"]).set_index(["date", "Name"]).sort_index()
+    raw["daily_return"] = raw.groupby(level="Name")["close"].transform(lambda x: np.log(x / x.shift(1)))
+    
+    # We shift the returns back by 2 to align the return (D+1 -> D+2) with the row for day D.
+    target_returns = raw.groupby(level="Name")["daily_return"].shift(-2)
+
+    # 4. Generate positions and compute performance
+    print("Generating positions and calculating cumulative PnL...")
+    positions = signal_to_positions(full_signal, k=10)
+    cum_pnl = calculate_cumulative_pnl(positions, target_returns.reindex(positions.index))
+
 if __name__ == "__main__":
     main()
